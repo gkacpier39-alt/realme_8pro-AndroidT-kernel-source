@@ -7,31 +7,37 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-    - name: Download Sources Safely via Wget
+    # 1. Fetch only the files we need using an internal blob filter (Extremely fast & reliable)
+    - name: Checkout Kernel Source
+      uses: actions/checkout@v4
+      with:
+        path: kernel-source
+        filter: 'blob:none'
+
+    # 2. Securely fetch KernelSU-Next source snapshot
+    - name: Checkout KernelSU-Next Securely
+      uses: actions/checkout@v4
+      with:
+        repository: rifsxd/KernelSU-Next
+        ref: next
+        path: kernelsu-next
+        sparse-checkout: 'kernel'
+
+    - name: Install Build Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync zip wget gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
-
-        # 1. Download Realme kernel source using wget (with retry and resume support)
-        wget --tries=10 --retry-connrefused --waitretry=5 -O master.zip https://github.com
-        unzip -q master.zip
-        mv realme_8pro-AndroidT-kernel-source-master kernel-source
-        rm master.zip
-
-        # 2. Download KernelSU-Next zip
-        wget --tries=5 -O next.zip https://github.com
-        unzip -q next.zip
-        mkdir -p kernel-source/drivers/kernelsu
-        cp -r KernelSU-Next-next/kernel/* kernel-source/drivers/kernelsu/
-        rm -rf next.zip KernelSU-Next-next
+        sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync git ccache zip gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
 
     - name: Integrate KernelSU-Next Manually
       run: |
+        mkdir -p kernel-source/drivers/kernelsu
+        cp -r kernelsu-next/kernel/* kernel-source/drivers/kernelsu/
+        
         cd kernel-source
         echo "obj-y += kernelsu/" >> drivers/Makefile
         
-        # Automatically find the target defconfig file
-        CONF_FILE=$(find arch/arm64/configs/ -name "*quark*" -o -name "*user*" -o -name "*defconfig*" | head -n 1)
+        # Automatically detect the configuration file profile
+        CONF_FILE=$(find arch/arm64/configs/ -name "*defconfig*" | head -n 1)
         echo "Modifying config file: $CONF_FILE"
         
         echo "CONFIG_KPROBES=y" >> "$CONF_FILE"
@@ -50,11 +56,7 @@ jobs:
 
     - name: Package with AnyKernel3
       run: |
-        wget -O master.zip https://github.com
-        unzip -q master.zip
-        mv AnyKernel3-master AnyKernel3
-        rm master.zip
-        
+        git clone --depth=1 https://github.com
         cp kernel-source/out/arch/arm64/boot/Image.gz-dtb AnyKernel3/ || cp kernel-source/out/arch/arm64/boot/Image AnyKernel3/
         cd AnyKernel3
         sed -i 's/do.devicecheck=1/do.devicecheck=0/g' anykernel.sh
