@@ -1,0 +1,53 @@
+name: Build KernelSU-Next for Realme 8 Pro
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Checkout Kernel Source
+      uses: actions/checkout@v4
+
+    - name: Install Build Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync git ccache zip listcc gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+
+    - name: Download AOSP Clang Compiler
+      run: |
+        mkdir -p clang
+        cd clang
+        curl -LO https://googlesource.com
+        tar -xzf clang-r487747c.tar.gz
+        echo "$(pwd)/bin" >> $GITHUB_PATH
+
+    - name: Integrate KernelSU-Next
+      run: |
+        curl -LSs "https://githubusercontent.com" | bash -s next
+        echo "CONFIG_KPROBES=y" >> arch/arm64/configs/vendor/quark_user_defconfig
+        echo "CONFIG_HAVE_KPROBES=y" >> arch/arm64/configs/vendor/quark_user_defconfig
+        echo "CONFIG_KPROBE_EVENTS=y" >> arch/arm64/configs/vendor/quark_user_defconfig
+
+    - name: Compile Kernel
+      run: |
+        export ARCH=arm64
+        export SUBARCH=arm64
+        make O=out vendor/quark_user_defconfig
+        make -j$(nproc) O=out CC=clang CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+
+    - name: Package with AnyKernel3
+      run: |
+        git clone https://github.com
+        cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
+        cd AnyKernel3
+        # Adjusting the AnyKernel template for quark setup
+        sed -i 's/do.devicecheck=1/do.devicecheck=0/g' anykernel.sh
+        zip -r ../KernelSU-Next-Realme8Pro.zip *
+
+    - name: Upload Flashable Kernel Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: KernelSU-Next-Zip
+        path: KernelSU-Next-Realme8Pro.zip
