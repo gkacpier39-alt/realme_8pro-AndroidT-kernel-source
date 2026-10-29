@@ -7,32 +7,27 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-    # 1. Fetch only the last commit snapshot of your kernel source
-    - name: Checkout Kernel Source
-      uses: actions/checkout@v4
-      with:
-        path: kernel-source
-        fetch-depth: 1
-
-    # 2. Fetch only the last commit snapshot of KernelSU-Next
-    - name: Checkout KernelSU-Next Securely
-      uses: actions/checkout@v4
-      with:
-        repository: rifsxd/KernelSU-Next
-        ref: next
-        path: kernelsu-next
-        fetch-depth: 1
-
-    - name: Install Build Dependencies
+    # Bypassing actions/checkout completely to prevent Git network crashes
+    - name: Download Kernel Source and KernelSU-Next via ZIP
       run: |
         sudo apt-get update
-        sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync git ccache zip gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+        sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync zip gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+
+        # 1. Download and extract your Realme kernel source code zip
+        curl -LO https://github.com
+        unzip -q master.zip
+        mv realme_8pro-AndroidT-kernel-source-master kernel-source
+        rm master.zip
+
+        # 2. Download and extract the KernelSU-Next zip
+        curl -LO https://github.com
+        unzip -q next.zip
+        mkdir -p kernel-source/drivers/kernelsu
+        cp -r KernelSU-Next-next/kernel/* kernel-source/drivers/kernelsu/
+        rm -rf next.zip KernelSU-Next-next
 
     - name: Integrate KernelSU-Next Manually
       run: |
-        mkdir -p kernel-source/drivers/kernelsu
-        cp -r kernelsu-next/kernel/* kernel-source/drivers/kernelsu/
-        
         cd kernel-source
         echo "obj-y += kernelsu/" >> drivers/Makefile
         
@@ -56,7 +51,12 @@ jobs:
 
     - name: Package with AnyKernel3
       run: |
-        git clone --depth=1 https://github.com
+        # Download AnyKernel3 template via zip to keep it secure and fast
+        curl -LO https://github.com
+        unzip -q master.zip
+        mv AnyKernel3-master AnyKernel3
+        rm master.zip
+        
         cp kernel-source/out/arch/arm64/boot/Image.gz-dtb AnyKernel3/ || cp kernel-source/out/arch/arm64/boot/Image AnyKernel3/
         cd AnyKernel3
         sed -i 's/do.devicecheck=1/do.devicecheck=0/g' anykernel.sh
