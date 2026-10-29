@@ -7,63 +7,25 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-    # Use internal high-speed secure token to download the source code package directly
-    - name: Download Infrastructure Safely
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync zip gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
-
-        # 1. Download kernel source using internal high-speed secure cloud token
-        curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -LO "https://github.com{{ github.repository }}/archive/refs/heads/master.zip" || curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -LO "https://github.com{{ github.repository }}/archive/refs/heads/main.zip"
-        
-        unzip -q *.zip
-        mv realme_8pro-AndroidT-kernel-source-* kernel-source
-        rm -f *.zip
-
-        # 2. Download KernelSU-Next structures cleanly 
-        curl -LO https://github.com
-        unzip -q next.zip
-        mkdir -p kernel-source/drivers/kernelsu
-        cp -r KernelSU-Next-next/kernel/* kernel-source/drivers/kernelsu/
-        rm -rf next.zip KernelSU-Next-next
-
-    - name: Integrate KernelSU-Next Manually
-      run: |
-        cd kernel-source
-        echo "obj-y += kernelsu/" >> drivers/Makefile
-        
-        # Locate the exact compilation configuration file profile dynamically
-        CONF_FILE=$(find arch/arm64/configs/ -name "*defconfig*" | head -n 1)
-        echo "Modifying found config file: $CONF_FILE"
-        
-        echo "CONFIG_KPROBES=y" >> "$CONF_FILE"
-        echo "CONFIG_HAVE_KPROBES=y" >> "$CONF_FILE"
-        echo "CONFIG_KPROBE_EVENTS=y" >> "$CONF_FILE"
-        
-        echo "DEFCONFIG_NAME=$(basename $CONF_FILE)" >> $GITHUB_ENV
-
-    - name: Compile Kernel
-      run: |
-        cd kernel-source
-        export ARCH=arm64
-        export SUBARCH=arm64
-        make O=out "$DEFCONFIG_NAME"
-        make -j$(nproc) O=out CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
-
-    - name: Package with AnyKernel3
-      run: |
-        curl -LO https://github.com
-        unzip -q master.zip
-        mv AnyKernel3-master AnyKernel3
-        rm master.zip
-        
-        cp kernel-source/out/arch/arm64/boot/Image.gz-dtb AnyKernel3/ || cp kernel-source/out/arch/arm64/boot/Image AnyKernel3/
-        cd AnyKernel3
-        sed -i 's/do.devicecheck=1/do.devicecheck=0/g' anykernel.sh
-        zip -r ../KernelSU-Next-Realme8Pro.zip *
-
-    - name: Upload Flashable Kernel Artifact
-      uses: actions/upload-artifact@v4
+    - name: Run Dedicated Cloud Kernel Compiler Engine
+      uses: dabyd64/android-kernel-actions@v1.4
       with:
-        name: KernelSU-Next-Zip
-        path: KernelSU-Next-Realme8Pro.zip
+        kernel-url: https://github.com
+        kernel-branch: master
+        config: quark_user_defconfig
+        arch: arm64
+        compiler: gcc
+        ksu: false
+        extra-cmd: |
+          # Manually download and patch KernelSU-Next into the system tree safely
+          mkdir -p drivers/kernelsu
+          curl -LO https://github.com
+          unzip -q next.zip
+          cp -r KernelSU-Next-next/kernel/* drivers/kernelsu/
+          rm -rf next.zip KernelSU-Next-next
+          echo "obj-y += kernelsu/" >> drivers/Makefile
+          
+          # Inject mandatory configuration requirements directly into target environment profiles
+          echo "CONFIG_KPROBES=y" >> arch/arm64/configs/vendor/quark_user_defconfig
+          echo "CONFIG_HAVE_KPROBES=y" >> arch/arm64/configs/vendor/quark_user_defconfig
+          echo "CONFIG_KPROBE_EVENTS=y" >> arch/arm64/configs/vendor/quark_user_defconfig
