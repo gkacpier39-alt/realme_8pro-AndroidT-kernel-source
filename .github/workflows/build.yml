@@ -7,19 +7,25 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-    - name: Download Environment Infrastructure
+    # Use internal high-speed secure token to download the source code package directly
+    - name: Download Infrastructure Safely
       run: |
         sudo apt-get update
-        sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync zip subversion gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+        sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync zip gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
 
-        # 1. Pull down workspace structure using subversion to bypass git size/branch restrictions entirely
-        svn export https://github.com kernel-source || svn export https://github.com kernel-source || svn export https://github.com kernel-source
+        # 1. Download kernel source using internal high-speed secure cloud token
+        curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -LO "https://github.com{{ github.repository }}/archive/refs/heads/master.zip" || curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -LO "https://github.com{{ github.repository }}/archive/refs/heads/main.zip"
+        
+        unzip -q *.zip
+        mv realme_8pro-AndroidT-kernel-source-* kernel-source
+        rm -f *.zip
 
-        # 2. Grab KernelSU-Next structures cleanly
-        svn export https://github.com kernelsu-next
+        # 2. Download KernelSU-Next structures cleanly 
+        curl -LO https://github.com
+        unzip -q next.zip
         mkdir -p kernel-source/drivers/kernelsu
-        cp -r kernelsu-next/* kernel-source/drivers/kernelsu/
-        rm -rf kernelsu-next
+        cp -r KernelSU-Next-next/kernel/* kernel-source/drivers/kernelsu/
+        rm -rf next.zip KernelSU-Next-next
 
     - name: Integrate KernelSU-Next Manually
       run: |
@@ -46,7 +52,11 @@ jobs:
 
     - name: Package with AnyKernel3
       run: |
-        svn export https://github.com AnyKernel3
+        curl -LO https://github.com
+        unzip -q master.zip
+        mv AnyKernel3-master AnyKernel3
+        rm master.zip
+        
         cp kernel-source/out/arch/arm64/boot/Image.gz-dtb AnyKernel3/ || cp kernel-source/out/arch/arm64/boot/Image AnyKernel3/
         cd AnyKernel3
         sed -i 's/do.devicecheck=1/do.devicecheck=0/g' anykernel.sh
