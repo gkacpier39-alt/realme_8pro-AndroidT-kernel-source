@@ -15,11 +15,6 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync git ccache zip gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
 
-    - name: Setup Proton Clang Compiler
-      run: |
-        git clone --depth=1 https://github.com clang
-        echo "$(pwd)/clang/bin" >> $GITHUB_PATH
-
     - name: Integrate KernelSU-Next
       run: |
         curl -LSs "https://githubusercontent.com" | bash -s next
@@ -32,7 +27,7 @@ jobs:
         export ARCH=arm64
         export SUBARCH=arm64
         make O=out vendor/quark_user_defconfig
-        make -j$(nproc) O=out CC=clang CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+        make -j$(nproc) O=out CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
     - name: Package with AnyKernel3
       run: |
