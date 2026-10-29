@@ -7,20 +7,19 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-    # Bypassing actions/checkout completely to prevent Git network crashes
-    - name: Download Kernel Source and KernelSU-Next via ZIP
+    - name: Download Sources Safely via Wget
       run: |
         sudo apt-get update
-        sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync zip gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+        sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync zip wget gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
 
-        # 1. Download and extract your Realme kernel source code zip
-        curl -LO https://github.com
+        # 1. Download Realme kernel source using wget (with retry and resume support)
+        wget --tries=10 --retry-connrefused --waitretry=5 -O master.zip https://github.com
         unzip -q master.zip
         mv realme_8pro-AndroidT-kernel-source-master kernel-source
         rm master.zip
 
-        # 2. Download and extract the KernelSU-Next zip
-        curl -LO https://github.com
+        # 2. Download KernelSU-Next zip
+        wget --tries=5 -O next.zip https://github.com
         unzip -q next.zip
         mkdir -p kernel-source/drivers/kernelsu
         cp -r KernelSU-Next-next/kernel/* kernel-source/drivers/kernelsu/
@@ -51,8 +50,7 @@ jobs:
 
     - name: Package with AnyKernel3
       run: |
-        # Download AnyKernel3 template via zip to keep it secure and fast
-        curl -LO https://github.com
+        wget -O master.zip https://github.com
         unzip -q master.zip
         mv AnyKernel3-master AnyKernel3
         rm master.zip
