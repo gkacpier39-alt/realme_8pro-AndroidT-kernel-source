@@ -7,12 +7,19 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-    # 1. Fetch only the files we need using an internal blob filter (Extremely fast & reliable)
+    # 1. Dynamically download your active kernel source code branch cleanly
     - name: Checkout Kernel Source
       uses: actions/checkout@v4
       with:
         path: kernel-source
-        filter: 'blob:none'
+        sparse-checkout: |
+          arch
+          drivers
+          Makefile
+          Kbuild
+          Kconfig
+          include
+          scripts
 
     # 2. Securely fetch KernelSU-Next source snapshot
     - name: Checkout KernelSU-Next Securely
@@ -36,7 +43,7 @@ jobs:
         cd kernel-source
         echo "obj-y += kernelsu/" >> drivers/Makefile
         
-        # Automatically detect the configuration file profile
+        # Automatically detect the configuration file profile inside arch/arm64/configs
         CONF_FILE=$(find arch/arm64/configs/ -name "*defconfig*" | head -n 1)
         echo "Modifying config file: $CONF_FILE"
         
