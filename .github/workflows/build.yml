@@ -17,21 +17,32 @@ jobs:
 
     - name: Integrate KernelSU-Next Manually
       run: |
+        # Download KernelSU-Next using a dedicated sparse checkout to avoid network breaks
+        git clone --depth=1 -b next https://github.com ksunext
         mkdir -p drivers/kernelsu
-        curl -LO https://github.com
-        unzip next.zip
-        cp -r KernelSU-Next-next/kernel/* drivers/kernelsu/
-        rm -rf next.zip KernelSU-Next-next
+        cp -r ksunext/kernel/* drivers/kernelsu/
+        rm -rf ksunext
+        
+        # Add to drivers compilation list
         echo "obj-y += kernelsu/" >> drivers/Makefile
-        echo "CONFIG_KPROBES=y" >> arch/arm64/configs/vendor/quark_user_defconfig
-        echo "CONFIG_HAVE_KPROBES=y" >> arch/arm64/configs/vendor/quark_user_defconfig
-        echo "CONFIG_KPROBE_EVENTS=y" >> arch/arm64/configs/vendor/quark_user_defconfig
+        
+        # Automatically find the target defconfig file containing 'quark' or 'user'
+        CONF_FILE=$(find arch/arm64/configs/ -name "*quark*" -o -name "*defconfig*" | head -n 1)
+        echo "Modifying found config file: $CONF_FILE"
+        
+        echo "CONFIG_KPROBES=y" >> "$CONF_FILE"
+        echo "CONFIG_HAVE_KPROBES=y" >> "$CONF_FILE"
+        echo "CONFIG_KPROBE_EVENTS=y" >> "$CONF_FILE"
+        
+        # Save config file name to global environment variable for compilation step
+        echo "DEFCONFIG_NAME=$(basename $CONF_FILE)" >> $GITHUB_ENV
 
     - name: Compile Kernel
       run: |
         export ARCH=arm64
         export SUBARCH=arm64
-        make O=out vendor/quark_user_defconfig
+        # Compile using the auto-detected defconfig name saved from the previous step
+        make O=out "$DEFCONFIG_NAME"
         make -j$(nproc) O=out CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
     - name: Package with AnyKernel3
