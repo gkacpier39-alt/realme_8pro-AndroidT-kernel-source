@@ -13,7 +13,7 @@ jobs:
     - name: Install Build Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync git ccache zip listcc gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+        sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync git ccache zip gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
 
     - name: Download AOSP Clang Compiler
       run: |
@@ -40,9 +40,8 @@ jobs:
     - name: Package with AnyKernel3
       run: |
         git clone https://github.com
-        cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
+        cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/ || cp out/arch/arm64/boot/Image AnyKernel3/
         cd AnyKernel3
-        # Adjusting the AnyKernel template for quark setup
         sed -i 's/do.devicecheck=1/do.devicecheck=0/g' anykernel.sh
         zip -r ../KernelSU-Next-Realme8Pro.zip *
 
