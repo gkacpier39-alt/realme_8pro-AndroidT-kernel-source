@@ -17,10 +17,12 @@ jobs:
 
     - name: Integrate KernelSU-Next Manually
       run: |
-        cd drivers
-        git clone --depth=1 -b next https://github.com kernelsu
-        echo "obj-y += kernelsu/" >> Makefile
-        cd ..
+        mkdir -p drivers/kernelsu
+        curl -LO https://github.com
+        unzip next.zip
+        cp -r KernelSU-Next-next/kernel/* drivers/kernelsu/
+        rm -rf next.zip KernelSU-Next-next
+        echo "obj-y += kernelsu/" >> drivers/Makefile
         echo "CONFIG_KPROBES=y" >> arch/arm64/configs/vendor/quark_user_defconfig
         echo "CONFIG_HAVE_KPROBES=y" >> arch/arm64/configs/vendor/quark_user_defconfig
         echo "CONFIG_KPROBE_EVENTS=y" >> arch/arm64/configs/vendor/quark_user_defconfig
