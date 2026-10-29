@@ -15,9 +15,12 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync git ccache zip gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
 
-    - name: Integrate KernelSU-Next
+    - name: Integrate KernelSU-Next Manually
       run: |
-        curl -LSs "https://githubusercontent.com" | bash -s next
+        cd drivers
+        git clone --depth=1 -b next https://github.com kernelsu
+        echo "obj-y += kernelsu/" >> Makefile
+        cd ..
         echo "CONFIG_KPROBES=y" >> arch/arm64/configs/vendor/quark_user_defconfig
         echo "CONFIG_HAVE_KPROBES=y" >> arch/arm64/configs/vendor/quark_user_defconfig
         echo "CONFIG_KPROBE_EVENTS=y" >> arch/arm64/configs/vendor/quark_user_defconfig
