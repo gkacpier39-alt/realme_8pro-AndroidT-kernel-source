@@ -7,45 +7,28 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-    # 1. Dynamically download your active kernel source code branch cleanly
-    - name: Checkout Kernel Source
-      uses: actions/checkout@v4
-      with:
-        path: kernel-source
-        sparse-checkout: |
-          arch
-          drivers
-          Makefile
-          Kbuild
-          Kconfig
-          include
-          scripts
-
-    # 2. Securely fetch KernelSU-Next source snapshot
-    - name: Checkout KernelSU-Next Securely
-      uses: actions/checkout@v4
-      with:
-        repository: rifsxd/KernelSU-Next
-        ref: next
-        path: kernelsu-next
-        sparse-checkout: 'kernel'
-
-    - name: Install Build Dependencies
+    - name: Download Environment Infrastructure
       run: |
         sudo apt-get update
-        sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync git ccache zip gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+        sudo apt-get install -y bc bison build-essential flex libssl-dev libelf-dev libncurses-dev rsync zip subversion gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+
+        # 1. Pull down workspace structure using subversion to bypass git size/branch restrictions entirely
+        svn export https://github.com kernel-source || svn export https://github.com kernel-source || svn export https://github.com kernel-source
+
+        # 2. Grab KernelSU-Next structures cleanly
+        svn export https://github.com kernelsu-next
+        mkdir -p kernel-source/drivers/kernelsu
+        cp -r kernelsu-next/* kernel-source/drivers/kernelsu/
+        rm -rf kernelsu-next
 
     - name: Integrate KernelSU-Next Manually
       run: |
-        mkdir -p kernel-source/drivers/kernelsu
-        cp -r kernelsu-next/kernel/* kernel-source/drivers/kernelsu/
-        
         cd kernel-source
         echo "obj-y += kernelsu/" >> drivers/Makefile
         
-        # Automatically detect the configuration file profile inside arch/arm64/configs
+        # Locate the exact compilation configuration file profile dynamically
         CONF_FILE=$(find arch/arm64/configs/ -name "*defconfig*" | head -n 1)
-        echo "Modifying config file: $CONF_FILE"
+        echo "Modifying found config file: $CONF_FILE"
         
         echo "CONFIG_KPROBES=y" >> "$CONF_FILE"
         echo "CONFIG_HAVE_KPROBES=y" >> "$CONF_FILE"
@@ -63,7 +46,7 @@ jobs:
 
     - name: Package with AnyKernel3
       run: |
-        git clone --depth=1 https://github.com
+        svn export https://github.com AnyKernel3
         cp kernel-source/out/arch/arm64/boot/Image.gz-dtb AnyKernel3/ || cp kernel-source/out/arch/arm64/boot/Image AnyKernel3/
         cd AnyKernel3
         sed -i 's/do.devicecheck=1/do.devicecheck=0/g' anykernel.sh
